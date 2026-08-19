@@ -48,7 +48,7 @@ pipeline {
 
         stage('Test') {
             steps {
-                sh 'chmod +x scripts/test.sh'
+                sh 'chmod +x scripts/TEST.SH'
                 sh './scripts/test.sh'
             }
         }
@@ -61,7 +61,7 @@ pipeline {
             }
 
             steps {
-                sh 'chmod +x scripts/dev.sh'
+                sh 'chmod +x scripts/DEV.SH'
                 sh './scripts/dev.sh'
             }
         }
@@ -74,7 +74,7 @@ pipeline {
             }
 
             steps {
-                sh 'chmod +x scripts/test.sh'
+                sh 'chmod +x scripts/TEST.SH'
                 sh './scripts/test.sh'
             }
         }
@@ -87,7 +87,7 @@ pipeline {
             }
 
             steps {
-                sh 'chmod +x scripts/prod.sh'
+                sh 'chmod +x scripts/PROD.SH'
                 sh './scripts/prod.sh'
             }
         }
