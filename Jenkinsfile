@@ -12,7 +12,7 @@ pipeline {
 
         choice(
             name: 'BRANCH',
-            choices: ['master', 'develop'],
+            choices: ['main', 'develop'],
             description: 'Select branch'
         )
     }
@@ -56,7 +56,6 @@ pipeline {
                 echo "================================="
 
                 echo "Running tests..."
-
                 echo "Tests completed successfully"
             }
         }
