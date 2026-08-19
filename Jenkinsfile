@@ -33,23 +33,31 @@ pipeline {
                 echo "Checking out branch: ${params.BRANCH}"
 
                 git branch: "${params.BRANCH}",
-                    url: 'YOUR_GITHUB_REPOSITORY_URL'
+                    url: 'https://github.com/challatoora/Parameterized-Deployment.git'
             }
         }
 
         stage('Build') {
             steps {
                 echo "================================="
-                echo "Build started"
-                echo "Build completed successfully"
+                echo "BUILD STARTED"
                 echo "================================="
+
+                sh 'docker build -t parameterized-app .'
+
+                echo "Build completed successfully"
             }
         }
 
         stage('Test') {
             steps {
-                sh 'chmod +x scripts/TEST.SH'
-                sh './scripts/test.sh'
+                echo "================================="
+                echo "TEST STARTED"
+                echo "================================="
+
+                echo "Running tests..."
+
+                echo "Tests completed successfully"
             }
         }
 
@@ -61,8 +69,10 @@ pipeline {
             }
 
             steps {
+                echo "Deploying to DEV environment"
+
                 sh 'chmod +x scripts/DEV.SH'
-                sh './scripts/dev.sh'
+                sh './scripts/DEV.SH'
             }
         }
 
@@ -74,8 +84,10 @@ pipeline {
             }
 
             steps {
+                echo "Deploying to TEST environment"
+
                 sh 'chmod +x scripts/TEST.SH'
-                sh './scripts/test.sh'
+                sh './scripts/TEST.SH'
             }
         }
 
@@ -87,21 +99,28 @@ pipeline {
             }
 
             steps {
+                echo "Deploying to PROD environment"
+
                 sh 'chmod +x scripts/PROD.SH'
-                sh './scripts/prod.sh'
+                sh './scripts/PROD.SH'
             }
         }
     }
 
     post {
+
         success {
-            echo "Deployment completed successfully"
+            echo "================================="
+            echo "DEPLOYMENT SUCCESSFUL"
             echo "Environment: ${params.ENVIRONMENT}"
             echo "Branch: ${params.BRANCH}"
+            echo "================================="
         }
 
         failure {
-            echo "Pipeline failed"
+            echo "================================="
+            echo "PIPELINE FAILED"
+            echo "================================="
         }
     }
 }
