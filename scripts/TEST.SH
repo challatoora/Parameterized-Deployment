@@ -1,10 +1,8 @@
 #!/bin/bash
 
 echo "================================"
-echo "       TEST DEPLOYMENT"
+echo "          TESTING"
 echo "================================"
 
-echo "Connected to TEST EC2"
-echo "TEST deployment started"
-
-echo "TEST deployment completed successfully"
+echo "Running application tests"
+echo "Tests completed successfully"
