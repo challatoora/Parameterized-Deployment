@@ -4,7 +4,7 @@ pipeline {
     parameters {
         choice(
             name: 'ENVIRONMENT',
-            choices: ['DEV', 'TEST', 'PROD'],
+            choices: ['dev', 'test', 'prod'],
             description: 'Select environment'
         )
     }
@@ -18,14 +18,21 @@ pipeline {
         stage('Select Branch') {
             steps {
                 script {
-                    if (params.ENVIRONMENT == 'DEV') {
+
+                    def selectedEnv = params.ENVIRONMENT.toUpperCase()
+
+                    if (selectedEnv == 'DEV') {
                         env.BRANCH = 'develop'
                     } else {
                         env.BRANCH = 'main'
                     }
 
-                    echo "Environment: ${params.ENVIRONMENT}"
-                    echo "Git Branch: ${env.BRANCH}"
+                    env.DEPLOY_ENV = selectedEnv
+
+                    echo "================================"
+                    echo "Environment : ${env.DEPLOY_ENV}"
+                    echo "Git Branch  : ${env.BRANCH}"
+                    echo "================================"
                 }
             }
         }
@@ -55,7 +62,7 @@ pipeline {
             steps {
                 script {
 
-                    def envName = params.ENVIRONMENT.toLowerCase()
+                    def envName = env.DEPLOY_ENV.toLowerCase()
 
                     def containerName = "${envName}-container"
 
@@ -63,16 +70,16 @@ pipeline {
 
                     def port
 
-                    if (params.ENVIRONMENT == 'DEV') {
-                        port = '8081'
-                    } else if (params.ENVIRONMENT == 'TEST') {
-                        port = '8082'
+                    if (env.DEPLOY_ENV == 'DEV') {
+                        port = '8090'
+                    } else if (env.DEPLOY_ENV == 'TEST') {
+                        port = '8091'
                     } else {
-                        port = '8083'
+                        port = '8092'
                     }
 
                     echo "================================"
-                    echo "${params.ENVIRONMENT} DEPLOYMENT"
+                    echo "${env.DEPLOY_ENV} DEPLOYMENT"
                     echo "================================"
 
                     sh """
@@ -87,7 +94,7 @@ pipeline {
                         echo "Building Docker image..."
 
                         docker build --no-cache \
-                            --build-arg ENVIRONMENT=${params.ENVIRONMENT} \
+                            --build-arg ENVIRONMENT=${env.DEPLOY_ENV} \
                             -t ${imageName} .
 
                         echo "Starting container..."
@@ -101,10 +108,12 @@ pipeline {
                         echo "DEPLOYMENT COMPLETED"
                         echo "================================"
 
-                        echo "Container:"
+                        echo "Container status:"
+
                         docker ps --filter name=${containerName}
 
                         echo "Application content:"
+
                         docker exec ${containerName} \
                             cat /usr/share/nginx/html/index.html
                     """
@@ -115,11 +124,15 @@ pipeline {
 
     post {
         success {
-            echo "${params.ENVIRONMENT} deployment successful"
+            echo "================================"
+            echo "${params.ENVIRONMENT} DEPLOYMENT SUCCESSFUL"
+            echo "================================"
         }
 
         failure {
-            echo "${params.ENVIRONMENT} deployment failed"
+            echo "================================"
+            echo "${params.ENVIRONMENT} DEPLOYMENT FAILED"
+            echo "================================"
         }
     }
 }
