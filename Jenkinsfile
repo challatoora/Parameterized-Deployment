@@ -4,136 +4,110 @@ pipeline {
     parameters {
         choice(
             name: 'ENVIRONMENT',
-            choices: ['dev', 'test', 'prod'],
-            description: 'Select the deployment environment'
+            choices: ['DEV', 'TEST', 'PROD'],
+            description: 'Select environment'
         )
     }
 
     environment {
-        GIT_REPO = 'https://github.com/challatoora/Parameterized-Deployment.git'
+        GIT_URL = 'https://github.com/challatoora/Parameterized-Deployment.git'
     }
 
     stages {
 
-        stage('Set Environment') {
+        stage('Select Branch') {
             steps {
                 script {
-
-                    if (params.ENVIRONMENT == 'dev') {
+                    if (params.ENVIRONMENT == 'DEV') {
                         env.BRANCH = 'develop'
-                        env.SERVER = '3.226.236.205'
-                        env.CREDENTIAL_ID = 'dev-server-credentials'
-                        env.SCRIPT = 'scripts/DEV.SH'
-
-                    } else if (params.ENVIRONMENT == 'test') {
+                    } else {
                         env.BRANCH = 'main'
-                        env.SERVER = '44.202.196.230'
-                        env.CREDENTIAL_ID = 'test-server-credentials'
-                        env.SCRIPT = 'scripts/TEST.SH'
-
-                    } else if (params.ENVIRONMENT == 'prod') {
-                        env.BRANCH = 'main'
-                        env.SERVER = '98.92.87.4'
-                        env.CREDENTIAL_ID = 'prod-server-credentials'
-                        env.SCRIPT = 'scripts/PROD.SH'
                     }
 
-                    echo "========================================"
-                    echo "Environment : ${params.ENVIRONMENT}"
-                    echo "Branch      : ${env.BRANCH}"
-                    echo "Server      : ${env.SERVER}"
-                    echo "Script      : ${env.SCRIPT}"
-                    echo "========================================"
+                    echo "Environment: ${params.ENVIRONMENT}"
+                    echo "Git Branch: ${env.BRANCH}"
                 }
             }
         }
 
-        stage('Checkout Code') {
+        stage('Git Checkout') {
             steps {
-                echo "Checking out branch: ${env.BRANCH}"
+                echo "Checking out ${env.BRANCH} branch"
 
                 git(
                     branch: "${env.BRANCH}",
-                    credentialsId: 'github-credentials',
-                    url: "${env.GIT_REPO}"
+                    url: "${env.GIT_URL}"
                 )
-            }
-        }
 
-        stage('Check Script') {
-            steps {
                 sh '''
-                    echo "Checking script file..."
+                    echo "================================"
+                    echo "GIT INFORMATION"
+                    echo "================================"
 
-                    if [ ! -f "$SCRIPT" ]; then
-                        echo "ERROR: Script not found: $SCRIPT"
-                        exit 1
-                    fi
-
-                    echo "Script found: $SCRIPT"
-                    ls -l "$SCRIPT"
+                    git branch --show-current
+                    git log -1 --oneline
+                    git status
                 '''
             }
         }
 
-        stage('Copy Script to Server') {
+        stage('Docker Deploy') {
             steps {
+                script {
 
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: "${env.CREDENTIAL_ID}",
-                        usernameVariable: 'SERVER_USER',
-                        passwordVariable: 'SERVER_PASSWORD'
-                    )
-                ]) {
+                    def envName = params.ENVIRONMENT.toLowerCase()
 
-                    sh '''
-                        SCRIPT_NAME=$(basename "$SCRIPT")
+                    def containerName = "${envName}-container"
 
-                        echo "========================================"
-                        echo "Copying script to server"
-                        echo "Script : $SCRIPT_NAME"
-                        echo "Server : $SERVER"
-                        echo "========================================"
+                    def imageName = "parameterized-${envName}"
 
-                        sshpass -p "$SERVER_PASSWORD" scp \
-                            -o StrictHostKeyChecking=no \
-                            "$SCRIPT" \
-                            "$SERVER_USER@$SERVER:/tmp/$SCRIPT_NAME"
+                    def port
 
-                        echo "Script copied successfully"
-                    '''
-                }
-            }
-        }
+                    if (params.ENVIRONMENT == 'DEV') {
+                        port = '8081'
+                    } else if (params.ENVIRONMENT == 'TEST') {
+                        port = '8082'
+                    } else {
+                        port = '8083'
+                    }
 
-        stage('Execute Script on Server') {
-            steps {
+                    echo "================================"
+                    echo "${params.ENVIRONMENT} DEPLOYMENT"
+                    echo "================================"
 
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: "${env.CREDENTIAL_ID}",
-                        usernameVariable: 'SERVER_USER',
-                        passwordVariable: 'SERVER_PASSWORD'
-                    )
-                ]) {
+                    sh """
+                        echo "Removing old container..."
 
-                    sh '''
-                        SCRIPT_NAME=$(basename "$SCRIPT")
+                        docker rm -f ${containerName} 2>/dev/null || true
 
-                        echo "========================================"
-                        echo "Executing script"
-                        echo "Script : $SCRIPT_NAME"
-                        echo "Server : $SERVER"
-                        echo "========================================"
+                        echo "Removing old image..."
 
-                        sshpass -p "$SERVER_PASSWORD" ssh \
-                            -o StrictHostKeyChecking=no \
-                            "$SERVER_USER@$SERVER" \
-                            "chmod +x /tmp/$SCRIPT_NAME && /tmp/$SCRIPT_NAME"
+                        docker rmi -f ${imageName} 2>/dev/null || true
 
-                        echo "Script executed successfully"
-                    '''
+                        echo "Building Docker image..."
+
+                        docker build --no-cache \
+                            --build-arg ENVIRONMENT=${params.ENVIRONMENT} \
+                            -t ${imageName} .
+
+                        echo "Starting container..."
+
+                        docker run -d \
+                            --name ${containerName} \
+                            -p ${port}:80 \
+                            ${imageName}
+
+                        echo "================================"
+                        echo "DEPLOYMENT COMPLETED"
+                        echo "================================"
+
+                        echo "Container:"
+                        docker ps --filter name=${containerName}
+
+                        echo "Application content:"
+                        docker exec ${containerName} \
+                            cat /usr/share/nginx/html/index.html
+                    """
                 }
             }
         }
@@ -141,22 +115,11 @@ pipeline {
 
     post {
         success {
-            echo "========================================"
-            echo "       DEPLOYMENT SUCCESSFUL"
-            echo "========================================"
-            echo "Environment : ${params.ENVIRONMENT}"
-            echo "Branch      : ${env.BRANCH}"
-            echo "Server      : ${env.SERVER}"
-            echo "Script      : ${env.SCRIPT}"
-            echo "========================================"
+            echo "${params.ENVIRONMENT} deployment successful"
         }
 
         failure {
-            echo "========================================"
-            echo "        DEPLOYMENT FAILED"
-            echo "========================================"
-            echo "Environment : ${params.ENVIRONMENT}"
-            echo "========================================"
+            echo "${params.ENVIRONMENT} deployment failed"
         }
     }
 }
