@@ -57,6 +57,27 @@ pipeline {
                 '''
             }
         }
+        stage('Docker Build') {
+            steps {
+                script {
+                    def envName = env.DEPLOY_ENV.toLowerCase()
+                    def imageName = "parameterized-${envName}"
+
+                    sh """
+                        echo "================================"
+                        echo "DOCKER BUILD"
+                        echo "================================"
+
+                        docker build --no-cache \
+                            --build-arg ENVIRONMENT=${env.DEPLOY_ENV} \
+                            -t ${imageName} .
+
+                        echo "Docker image created:"
+                        docker images ${imageName}
+                    """
+                }
+            }
+        }
 
         stage('Docker Deploy') {
             steps {
