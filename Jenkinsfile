@@ -60,6 +60,22 @@ pipeline {
             }
         }
 
+        stage('Check Script') {
+            steps {
+                sh '''
+                    echo "Checking script file..."
+
+                    if [ ! -f "$SCRIPT" ]; then
+                        echo "ERROR: Script not found: $SCRIPT"
+                        exit 1
+                    fi
+
+                    echo "Script found: $SCRIPT"
+                    ls -l "$SCRIPT"
+                '''
+            }
+        }
+
         stage('Copy Script to Server') {
             steps {
 
@@ -72,12 +88,18 @@ pipeline {
                 ]) {
 
                     sh '''
-                        echo "Copying ${SCRIPT} to ${SERVER}"
+                        SCRIPT_NAME=$(basename "$SCRIPT")
+
+                        echo "========================================"
+                        echo "Copying script to server"
+                        echo "Script : $SCRIPT_NAME"
+                        echo "Server : $SERVER"
+                        echo "========================================"
 
                         sshpass -p "$SERVER_PASSWORD" scp \
                             -o StrictHostKeyChecking=no \
                             "$SCRIPT" \
-                            "$SERVER_USER@$SERVER:/tmp/$SCRIPT"
+                            "$SERVER_USER@$SERVER:/tmp/$SCRIPT_NAME"
 
                         echo "Script copied successfully"
                     '''
@@ -97,12 +119,18 @@ pipeline {
                 ]) {
 
                     sh '''
-                        echo "Executing ${SCRIPT} on ${SERVER}"
+                        SCRIPT_NAME=$(basename "$SCRIPT")
+
+                        echo "========================================"
+                        echo "Executing script"
+                        echo "Script : $SCRIPT_NAME"
+                        echo "Server : $SERVER"
+                        echo "========================================"
 
                         sshpass -p "$SERVER_PASSWORD" ssh \
                             -o StrictHostKeyChecking=no \
                             "$SERVER_USER@$SERVER" \
-                            "chmod +x /tmp/$SCRIPT && /tmp/$SCRIPT"
+                            "chmod +x /tmp/$SCRIPT_NAME && /tmp/$SCRIPT_NAME"
 
                         echo "Script executed successfully"
                     '''
@@ -120,6 +148,7 @@ pipeline {
             echo "Branch      : ${env.BRANCH}"
             echo "Server      : ${env.SERVER}"
             echo "Script      : ${env.SCRIPT}"
+            echo "========================================"
         }
 
         failure {
@@ -127,6 +156,7 @@ pipeline {
             echo "        DEPLOYMENT FAILED"
             echo "========================================"
             echo "Environment : ${params.ENVIRONMENT}"
+            echo "========================================"
         }
     }
 }
